@@ -1,0 +1,32 @@
+def eating(own_list, target_list, org):
+    for own in own_list:
+        for target in target_list:
+            food_org_dist = dist(own.x, own.y, target.x, target.y)
+
+            if food_org_dist <= 5:
+                own.energy += 500
+
+                target_list.remove(target)
+
+                if org == "worm":
+                    new_org = organism_worm(own.x + random.uniform(-3, 3), own.y + random.uniform(-3, 3), own.dense1,
+                                            own.dense2, own.dense3)
+                    own_list.append(new_org)
+
+                    if len(own_list) < 10:
+                        new_org = organism_worm(own.x + random.uniform(-3, 3), own.y + random.uniform(-3, 3),
+                                                own.dense1,
+                                                own.dense2, own.dense3)
+                        own_list.append(new_org)
+                    break
+                if org == "bird":
+                    new_org = organism_bird(own.x + random.uniform(-3, 3), own.y + random.uniform(-3, 3), own.dense1,
+                                            own.dense2, own.dense3)
+                    own_list.append(new_org)
+
+                    if len(own_list) < 10:
+                        new_org = organism_bird(own.x + random.uniform(-3, 3), own.y + random.uniform(-3, 3),
+                                                own.dense1,
+                                                own.dense2, own.dense3)
+                        own_list.append(new_org)
+                    break
