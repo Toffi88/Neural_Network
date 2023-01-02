@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import operator
 from numpy import *
+import matplotlib.pyplot as plt
 
 import copy
 
@@ -23,8 +24,8 @@ red = (213, 50, 80)
 green = (0, 100, 0)
 blue = (50, 153, 213)
 
-dis_width = 1000
-dis_height = 700
+dis_width = 1500
+dis_height = 780
 
 dis = pygame.display.set_mode((dis_width, dis_height))
 pygame.display.set_caption('Evolution by Serge')
@@ -100,6 +101,7 @@ class Activation_Softmax:
 def dist(x1, y1, x2, y2):
     return sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 
+
 # --- BORDER FOR SNAKE ---------------+
 def distance(own, target_list):
     closest_target = []
@@ -118,6 +120,7 @@ class organism_worm():
     def __init__(self, xx, yy, dense1, dense2, dense3):
 
         self.energy = 500
+        self.life_points = 0
 
         self.x = random.uniform(30, dis_width - 30)
         self.y = random.uniform(30, dis_height - 30)
@@ -128,10 +131,15 @@ class organism_worm():
             self.y = random.uniform(30, dis_height - 30)
 
         # --- CREATE NEW BRAIN LAYER
+        input_count = 8
+        output_count = 4
+        dense2_count = 5
+        dense3_count = 5
+
         if dense1 == 0:
-            self.dense1 = Layer_Dense(4, 5)
-            self.dense2 = Layer_Dense(5, 5)
-            self.dense3 = Layer_Dense(5, 2)
+            self.dense1 = Layer_Dense(input_count, dense2_count)
+            self.dense2 = Layer_Dense(dense2_count, dense3_count)
+            self.dense3 = Layer_Dense(dense3_count, output_count)
 
         # --- CREATE NEW BRAIN LAYER
         else:
@@ -139,12 +147,12 @@ class organism_worm():
             self.dense2 = copy.deepcopy(dense2)
             self.dense3 = copy.deepcopy(dense3)
 
-            dense1.weights += 0.05 * np.random.randn(4, 5)
+            dense1.weights += 0.05 * np.random.randn(input_count, 5)
             dense1.bias += 0.05 * np.random.randn(1, 5)
             dense2.weights += 0.05 * np.random.randn(5, 5)
             dense2.bias += 0.05 * np.random.randn(1, 5)
-            dense3.weights += 0.05 * np.random.randn(5, 2)
-            dense3.bias += 0.05 * np.random.randn(1, 2)
+            dense3.weights += 0.05 * np.random.randn(5, output_count)
+            dense3.bias += 0.05 * np.random.randn(1, output_count)
 
     def energy_update(self, worm_list):
         self.energy += -1
@@ -161,8 +169,8 @@ class organism_worm():
 
         Activation_Funktion = Activation_Sigmoid()
 
-        activation1 = Activation_Funktion
-        activation2 = Activation_Funktion
+        activation1 = Activation_ReLU()
+        activation2 = Activation_ReLU()
         activation3 = Activation_Funktion
 
         self.dense1.forward(X)
@@ -177,49 +185,40 @@ class organism_worm():
         self.output_NN = activation3.output
 
     def position_update_worm(self, food_list, bird_list):
+        self_list = self
+
         # --- Find next Food
+        target_pos_x, target_pos_y = distance(self_list, food_list)
 
-        ubergabe_list = self
+        target_pos_x = target_pos_x - self.x
+        target_pos_y = target_pos_y - self.y
 
-        # closest_food = []
-        # for essen in food_list:
-        #     closest_food_dist = dist(self.x, self.y, essen.x, essen.y)
-        #     closest_food.append([closest_food_dist, essen.x, essen.y])
-        #
-        # food_org_dist, essen_pos_x, essen_pos_y = min(closest_food, key=lambda item: item[0])
-
-        essen_pos_x, essen_pos_y = distance(ubergabe_list, food_list)
-        print(distance(ubergabe_list, food_list))
-        essen_pos_x = essen_pos_x - self.x
-        essen_pos_y = essen_pos_y - self.y
+        target_split_pos = split_input(target_pos_x, target_pos_y)
 
         # --- Find next Enemy
-        closest_enemy = []
-        for enemy in bird_list:
-            closest_enemy_dist = dist(self.x, self.y, enemy.x, enemy.y)
-            closest_enemy.append([closest_enemy_dist, enemy.x, enemy.y])
-
-        enemy_org_dist, enemy_pos_x, enemy_pos_y = min(closest_enemy, key=lambda item: item[0])
+        enemy_pos_x, enemy_pos_y = distance(self_list, food_list)
 
         enemy_pos_x = enemy_pos_x - self.x
         enemy_pos_y = enemy_pos_y - self.y
 
-        X = [essen_pos_x, essen_pos_y, enemy_pos_x, enemy_pos_y]
+        enemy_split_pos = split_input(enemy_pos_x, enemy_pos_y)
 
-        # X = [essen_pos_x, essen_pos_y]
+        X = target_split_pos + enemy_split_pos
+        print(X)
 
         self.Brain(X)
 
-        self.x += (self.output_NN[0][0] - 0.5) * 5
-        self.y += (self.output_NN[0][1] - 0.5) * 5
+        self.x += (self.output_NN[0][0] - 0.5)
+        self.y += (self.output_NN[0][1] - 0.5)
 
-        border(self.x, self.y)
+        border(self)
 
 
 class organism_bird():
     def __init__(self, xx, yy, dense1, dense2, dense3):
 
         self.energy = 500
+        self.life_points = 0
 
         self.x = random.uniform(30, dis_width - 30)
         self.y = random.uniform(30, dis_height - 30)
@@ -230,10 +229,15 @@ class organism_bird():
             self.y = random.uniform(30, dis_height - 30)
 
         # --- CREATE NEW BRAIN LAYER
+        input_count = 4
+        output_count = 4
+        dense2_count = 5
+        dense3_count = 5
+
         if dense1 == 0:
-            self.dense1 = Layer_Dense(2, 5)
-            self.dense2 = Layer_Dense(5, 5)
-            self.dense3 = Layer_Dense(5, 2)
+            self.dense1 = Layer_Dense(input_count, dense2_count)
+            self.dense2 = Layer_Dense(dense2_count, dense3_count)
+            self.dense3 = Layer_Dense(dense3_count, output_count)
 
         # --- CREATE NEW BRAIN LAYER
         else:
@@ -241,31 +245,23 @@ class organism_bird():
             self.dense2 = copy.deepcopy(dense2)
             self.dense3 = copy.deepcopy(dense3)
 
-            dense1.weights += 0.05 * np.random.randn(2, 5)
+            dense1.weights += 0.05 * np.random.randn(input_count, 5)
             dense1.bias += 0.05 * np.random.randn(1, 5)
             dense2.weights += 0.05 * np.random.randn(5, 5)
             dense2.bias += 0.05 * np.random.randn(1, 5)
-            dense3.weights += 0.05 * np.random.randn(5, 2)
-            dense3.bias += 0.05 * np.random.randn(1, 2)
+            dense3.weights += 0.05 * np.random.randn(5, output_count)
+            dense3.bias += 0.05 * np.random.randn(1, output_count)
 
     def energy_update(self, bird_list):
         self.energy += -1
         if self.energy <= 0:
             bird_list.remove(self)
 
-        # elif self.x < 0 or self.x > dis_width:
-        #     worm_list.remove(self)
-        #
-        # elif self.y < 0 or self.y > dis_height:
-        #     worm_list.remove(self)
-
     def Brain(self, X):
 
-        Activation_Funktion = Activation_Sigmoid()
-
-        activation1 = Activation_Funktion
-        activation2 = Activation_Funktion
-        activation3 = Activation_Funktion
+        activation1 = Activation_ReLU()
+        activation2 = Activation_ReLU()
+        activation3 = Activation_Sigmoid()
 
         self.dense1.forward(X)
         activation1.forward(self.dense1.output)
@@ -279,50 +275,45 @@ class organism_bird():
         self.output_NN = activation3.output
 
     def position_update_bird(self, worm_list):
-        closest_food = []
-        for essen in worm_list:
-            closest_food_dist = dist(self.x, self.y, essen.x, essen.y)
-            closest_food.append([closest_food_dist, essen.x, essen.y])
+        self_list = self
 
-        food_org_dist, essen_pos_x, essen_pos_y = min(closest_food, key=lambda item: item[0])
+        # --- Find next Food
+        target_pos_x, target_pos_y = distance(self_list, worm_list)
 
-        distance_x = essen_pos_x - self.x
-        distance_y = essen_pos_y - self.y
+        target_pos_x = target_pos_x - self.x
+        target_pos_y = target_pos_y - self.y
 
-        X = [distance_x, distance_y]
+        target_split_pos = split_input(target_pos_x, target_pos_y)
+
+        X = target_split_pos
         # print("X: ", X)
 
         self.Brain(X)
         # print("NN: ", self.output_NN)
 
-        self.x += (self.output_NN[0][0] - 0.5) * 5
-        self.y += (self.output_NN[0][1] - 0.5) * 5
+        self.x += (self.output_NN[0][0] - 0.5)
+        self.y += (self.output_NN[0][1] - 0.5)
 
-        # print("X diff: ",(self.output_NN[0][0] - 0.5)*20," | self.x: ", self.x)
-        # print("Y diff: ",(self.output_NN[0][1] - 0.5)*20," | self.y: ", self.y)
-
-        border(self.x, self.y)
+        border(self)
 
 
 # --- BORDER FOR SNAKE ---------------+
-def border(x, y):
-    if x < 10:
-        x = 10
-
-    if y < 10:
-        y = 10
-
-    if x > dis_width - 10:
-        x = dis_width - 10
-
-    if y > dis_height - 10:
-        y = dis_height - 10
-
-        return x, y
+def border(own):
+    if own.x < 10:
+        own.x = 10
+        own.energy -= 10
+    if own.y < 10:
+        own.y = 10
+        own.energy -= 10
+    if own.x > dis_width - 10:
+        own.x = dis_width - 10
+        own.energy -= 10
+    if own.y > dis_height - 10:
+        own.y = dis_height - 10
+        own.energy -= 10
 
 
 # --- FOOD ---------------+
-
 class food():
     def __init__(self, xx, yy):
         self.x = random.uniform(30, dis_width - 30)
@@ -340,12 +331,9 @@ def eating(own_list, target_list, org):
     for own in own_list:
         for target in target_list:
             food_org_dist = dist(own.x, own.y, target.x, target.y)
-
-            if food_org_dist <= 5:
+            if food_org_dist <= 2:
                 own.energy += 500
-
                 target_list.remove(target)
-
                 if org == "worm":
                     new_org = organism_worm(own.x + random.uniform(-3, 3), own.y + random.uniform(-3, 3), own.dense1,
                                             own.dense2, own.dense3)
@@ -353,8 +341,7 @@ def eating(own_list, target_list, org):
 
                     if len(own_list) < 10:
                         new_org = organism_worm(own.x + random.uniform(-3, 3), own.y + random.uniform(-3, 3),
-                                                own.dense1,
-                                                own.dense2, own.dense3)
+                                                own.dense1, own.dense2, own.dense3)
                         own_list.append(new_org)
                     break
                 if org == "bird":
@@ -370,25 +357,13 @@ def eating(own_list, target_list, org):
                     break
 
 
-# def bird_eating(bird_list, worm_list):
-#     for bird in bird_list:
-#         for worm in worm_list:
-#             food_org_dist = dist(bird.x, bird.y, worm.x, worm.y)
-#
-#             if food_org_dist <= 5:
-#                 bird.energy += 500
-#
-#                 worm_list.remove(worm)
-#
-#                 new_org = organism_bird(bird.x + random.uniform(-3, 3), bird.y + random.uniform(-3, 3), bird.dense1,
-#                                         bird.dense2, bird.dense3)
-#                 bird_list.append(new_org)
-#
-#                 if len(bird_list) < 10:
-#                     new_org = organism_bird(bird.x + random.uniform(-3, 3), bird.y + random.uniform(-3, 3), bird.dense1,
-#                                             bird.dense2, bird.dense3)
-#                     bird_list.append(new_org)
-#                 break
+# --- Split input x & y in positiv or negativ value
+def split_input(x, y):
+    tar_x_pos = np.maximum(0, x)  # positv x or 0
+    tar_x_neg = np.minimum(0, x)  # negativ x or 0
+    tar_y_pos = np.maximum(0, y)  # positv y or 0
+    tar_y_neg = np.minimum(0, y)  # negativ y or 0
+    return [tar_x_pos, tar_x_neg, tar_y_pos, tar_y_neg]
 
 
 def respawn_food(worm_list, food_list):
@@ -406,10 +381,18 @@ def respawn_food(worm_list, food_list):
         respawn_food(worm_list, food_list)
 
 
+def best(own, best, org):
+    own.life_points += 1
+    if org == "worm":
+        i = [own, own.life_points]
+        best.append(i)
+
+
 def gameLoop(settings):
     pygame.init()
     game_over = False
     game_close = False
+    running = True
 
     # --- CREATIOM WORM ---------------+
     worm_list = []
@@ -434,6 +417,11 @@ def gameLoop(settings):
 
     while not game_over:
 
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
         dis.fill(black)
 
         bird_count = len(bird_list)
@@ -452,20 +440,27 @@ def gameLoop(settings):
         pygame.display.set_caption(display_text)
 
         # -- WORM Visual ---------------+
+        best_worm = []
         for worm in worm_list:
             worm.position_update_worm(food_list, bird_list)
             worm.energy_update(worm_list)
-
-            rect1 = pygame.Rect(worm.x, worm.y, 8, 8)
+            best(worm, best_worm, "worm")
 
             worm_colour = (0, 0, 255)
 
             pygame.draw.rect(dis, worm_colour, [worm.x, worm.y, 8, 8])
 
+        best_worm_colour = (255, 215, 0)
+        best_worm_obj, best_worm_points = max(best_worm, key=lambda item: item[1])
+        print(max(best_worm, key=lambda item: item[1]))
+        pygame.draw.rect(dis, best_worm_colour, [best_worm_obj.x, best_worm_obj.y, 8, 8])
+
         # --- BIRD Visual ---------------+
+        best_bird = []
         for bird in bird_list:
             bird.position_update_bird(worm_list)
             bird.energy_update(bird_list)
+            best(bird, best_bird, "bird")
 
             rect1 = pygame.Rect(bird.x, bird.y, 8, 8)
 
@@ -485,10 +480,11 @@ def gameLoop(settings):
 
         clock.tick(50)
 
-        # print("------------")
+        # --- LAST INSTRUCTIONS ---------------+
 
-    pygame.quit()
-    quit()
+        plt.plot([-1, -4.5, 16, 23, 15, 59])
+        plt.show()
+        # print("------------")
 
 
 gameLoop(settings)
